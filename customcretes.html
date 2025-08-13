@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Custom Card Designer — Live Preview</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg: #0b0f14;
+      --panel: #121821;
+      --panel-2: #0f141c;
+      --text: #e6edf3;
+      --muted: #9fb0c3;
+      --primary: #347dff;
+      --danger: #d64d4d;
+      --border: #263244;
+
+      --effect-bg: #eef1f5;     /* grayish white effect box */
+      --effect-stroke: #cfd7e3; /* subtle border for effect box */
+      --effect-text: #1f2a36;   /* dark text for contrast */
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(1200px 600px at 20% -10%, #122135, transparent 70%) no-repeat, var(--bg);
+    }
+
+    .app-header, .app-footer{
+      padding:16px 24px;
+      border-bottom:1px solid var(--border);
+      background: linear-gradient(180deg, #0d1420, #0b0f14);
+    }
+    .app-footer{border-top:1px solid var(--border); border-bottom:none}
+
+    .app-header h1{
+      margin:0 0 8px 0;
+      font-family: Cinzel, serif;
+      font-weight:700;
+      letter-spacing:0.5px;
+    }
+    .actions{
+      display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+    }
+    .actions .inline{
+      display:inline-flex; gap:6px; align-items:center; font-size:12px; color:var(--muted);
+      background:#0e1621; border:1px solid var(--border); padding:6px 10px; border-radius:8px;
+    }
+    button{
+      background:#1b2636; color:var(--text); border:1px solid var(--border);
+      border-radius:10px; padding:10px 14px; cursor:pointer;
+      touch-action: manipulation;
+    }
+    button.primary{ background: var(--primary); border-color: #2c67cc; }
+    button.danger{ background: var(--danger); border-color: #b53f3f; }
+    button:hover{ filter:brightness(1.05) }
+
+    .app-main{
+      display:grid;
+      grid-template-columns: minmax(280px, 560px) minmax(320px, 1fr);
+      gap:24px;
+      padding:24px;
+      align-items:start;
+    }
+    .controls{
+      background: var(--panel);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:16px;
+      display:flex; flex-direction:column; gap:14px;
+    }
+    .field{ display:flex; flex-direction:column; gap:8px }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+    label{ color: var(--muted); font-size:12px }
+    input, select, textarea{
+      background: var(--panel-2);
+      border:1px solid var(--border);
+      color: var(--text);
+      border-radius:10px;
+      padding:12px 14px;
+      font-size:16px;
+    }
+    input[type="range"]{ width: min(100%, 320px); }
+    textarea{ resize:vertical; min-height: 120px; }
+
+    .grid.two{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
+    @media (max-width: 700px){ .grid.two{ grid-template-columns:1fr; } }
+
+    .preview{
+      display:flex; flex-direction:column; align-items:center; gap:12px; width:100%;
+    }
+    canvas{
+      width: 100%;
+      max-width: 420px;
+      aspect-ratio: 744 / 1040; /* Keeps height responsive */
+      border-radius:12px;
+      background:#0a0a0a;
+      box-shadow: 0 10px 30px rgba(0,0,0,.45);
+      border:1px solid var(--border);
+      touch-action: none;
+    }
+    .hint{ color: var(--muted); font-size:12px; text-align:center }
+
+    .formatbar button{
+      background:#0e1621;
+      border:1px solid var(--border);
+      padding:6px 12px;
+      border-radius:8px;
+      color:var(--text);
+      min-width:40px;
+    }
+    .formatbar .b{ font-weight:700 }
+    .formatbar .i{ font-style:italic }
+    .formatbar .u{ text-decoration:underline }
+
+    @media (max-width: 920px){
+      .app-main{ grid-template-columns: 1fr; padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>Custom Card Designer</h1>
+    <div class="actions">
+      <button id="btn-export" class="primary">Export PNG</button>
+      <button id="btn-reset" class="danger">New</button>
+      <span class="inline"><input type="checkbox" id="hires" checked /> <label for="hires">Hi‑res Preview</label></span>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section class="controls">
+      <div class="grid two">
+        <div class="field">
+          <label for="title">Card Name</label>
+          <input id="title" placeholder="Card Name" />
+        </div>
+        <div class="field">
+          <label for="frameColor">Frame Color</label>
+          <select id="frameColor">
+            <option value="colorless">Colorless</option>
+            <option value="white">White</option>
+            <option value="blue">Blue</option>
+            <option value="black">Black</option>
+            <option value="red">Red</option>
+            <option value="green">Green</option>
+            <option value="gold">Gold</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Card Image</label>
+        <div class="row">
+          <input id="artUpload" type="file" accept="image/*" />
+        </div>
+        <div class="row">
+          <label>Fit</label>
+          <select id="artFit">
+            <option value="cover">Cover (crop)</option>
+            <option value="contain">Contain (no crop)</option>
+          </select>
+          <label>Zoom</label>
+          <input id="artScale" type="range" min="0.5" max="3" step="0.01" value="1" />
+          <span id="artScaleVal" style="color:var(--muted);font-size:12px">100%</span>
+        </div>
+        <div class="row">
+          <label>Pan X</label>
+          <input id="artOffsetX" type="range" min="-100" max="100" step="1" value="0" />
+          <span id="artOffsetXVal" style="color:var(--muted);font-size:12px">0%</span>
+          <label>Pan Y</label>
+          <input id="artOffsetY" type="range" min="-100" max="100" step="1" value="0" />
+          <span id="artOffsetYVal" style="color:var(--muted);font-size:12px">0%</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="rulesText">Effect Text</label>
+        <div class="row formatbar">
+          <button id="fmt-bold" class="b" type="button">B</button>
+          <button id="fmt-italic" class="i" type="button">I</button>
+          <button id="fmt-underline" class="u" type="button">U</button>
+          <span style="color:var(--muted);font-size:12px">Use [b]bold[/b], [i]italic[/i], [u]underline[/u]</span>
+        </div>
+        <textarea id="rulesText" rows="8" placeholder="Effect text. Supports [b]bold[/b], [i]italic[/i], [u]underline[/u]."></textarea>
+      </div>
+
+      <div class="field">
+        <label for="creatorName">Creator Name (lower-left on card)</label>
+        <input id="creatorName" placeholder="Your name or handle" />
+      </div>
+
+      <div class="field">
+        <label for="rarityName">Rarity</label>
+        <select id="rarityName">
+          <option value="ultra common">Ultra Common (1 line)</option>
+          <option value="common">Common (2 lines)</option>
+          <option value="uncommon">Uncommon (3 lines)</option>
+          <option value="rare">Rare (4 lines)</option>
+          <option value="mythical">Mythical (5 lines)</option>
+          <option value="legendary">Legendary (6 lines)</option>
+          <option value="ultra legendary">Ultra Legendary (7 lines)</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="preview">
+      <canvas id="cardCanvas" width="372" height="518" aria-label="Card preview"></canvas>
+      <div class="hint">Live preview. Export PNG is high‑res.</div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <small>Mobile‑friendly, real‑time preview. No backend required.</small>
+  </footer>
+
+  <script>
+    // Design size for export (in design units)
+    const BASE_W = 744;
+    const BASE_H = 1040;
+
+    const el = {
+      hires: document.getElementById('hires'),
+      title: document.getElementById('title'),
+      rulesText: document.getElementById('rulesText'),
+      frameColor: document.getElementById('frameColor'),
+      artUpload: document.getElementById('artUpload'),
+      artFit: document.getElementById('artFit'),
+      artScale: document.getElementById('artScale'),
+      artScaleVal: document.getElementById('artScaleVal'),
+      artOffsetX: document.getElementById('artOffsetX'),
+      artOffsetY: document.getElementById('artOffsetY'),
+      artOffsetXVal: document.getElementById('artOffsetXVal'),
+      artOffsetYVal: document.getElementById('artOffsetYVal'),
+      rarityName: document.getElementById('rarityName'),
+      creatorName: document.getElementById('creatorName'),
+      fmtBold: document.getElementById('fmt-bold'),
+      fmtItalic: document.getElementById('fmt-italic'),
+      fmtUnderline: document.getElementById('fmt-underline'),
+      btnExport: document.getElementById('btn-export'),
+      btnReset: document.getElementById('btn-reset'),
+      canvas: document.getElementById('cardCanvas'),
+    };
+    const ctx = el.canvas.getContext('2d');
+
+    const RARITY_OPTIONS = [
+      { name: 'ultra common', lines: 1 },
+      { name: 'common', lines: 2 },
+      { name: 'uncommon', lines: 3 },
+      { name: 'rare', lines: 4 },
+      { name: 'mythical', lines: 5 },
+      { name: 'legendary', lines: 6 },
+      { name: 'ultra legendary', lines: 7 },
+    ];
+    const RARITY_TO_LINES = Object.fromEntries(RARITY_OPTIONS.map(r => [r.name, r.lines]));
+
+    const state = {
+      title: '',
+      rulesText: '',
+      frameColor: 'colorless',
+      artImage: null,
+      artFit: 'cover',  // 'cover' | 'contain'
+      artScale: 1,      // 0.5..3
+      artOffsetX: 0,    // -100..100 (% of overflow)
+      artOffsetY: 0,    // -100..100 (% of overflow)
+      rarityName: 'ultra common',
+      creatorName: '',
+    };
+
+    const FRAME_COLORS = {
+      colorless: ['#c8c8c8', '#a0a0a0'],
+      white: ['#f7f3e7', '#dccfb0'],
+      blue: ['#8fb8ff', '#4c74c6'],
+      black: ['#7a7a7a', '#2a2a2a'],
+      red: ['#f2a199', '#b3483e'],
+      green: ['#a7d2a4', '#4a9154'],
+      gold: ['#f2d082', '#b7952b'],
+    };
+
+    // Real-time render loop
+    let dirty = true;
+    function markDirty(){ dirty = true; }
+    function loop(){ if (dirty) { drawPreview(); dirty = false; } requestAnimationFrame(loop); }
+
+    function currentDpr(){ return el.hires.checked ? Math.min(window.devicePixelRatio || 1, 2) : 1; }
+    function resizeCanvas(){
+      // Make canvas backing store match the displayed CSS size for crisp text
+      const rect = el.canvas.getBoundingClientRect();
+      const cssW = Math.max(200, rect.width || 372);
+      const cssH = cssW * (BASE_H / BASE_W);
+      const dpr = currentDpr();
+      el.canvas.width = Math.round(cssW * dpr);
+      el.canvas.height = Math.round(cssH * dpr);
+      markDirty();
+    }
+
+    // Binary pattern cache (render once per size)
+    let binaryPatternCanvas = null;
+    function ensureBinaryPattern(w, h){
+      if (binaryPatternCanvas && binaryPatternCanvas.width === w && binaryPatternCanvas.height === h) return binaryPatternCanvas;
+      const off = document.createElement('canvas');
+      off.width = w; off.height = h;
+      const c = off.getContext('2d');
+
+      c.fillStyle = '#ffffff';
+      c.globalAlpha = 0.04;
+      c.fillRect(0,0,w,h);
+      c.globalAlpha = 1;
+
+      const cellW = 16, cellH = 18;
+      const cols = Math.ceil(w / cellW);
+      const rows = Math.ceil(h / cellH);
+
+      const g = c.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, 'rgba(0,0,0,0.0)');
+      g.addColorStop(1, 'rgba(0,0,0,0.10)');
+
+      c.font = '600 12px Inter, system-ui, sans-serif';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+
+      let seed = 1337;
+      function rnd(){ seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+
+      for (let r = 0; r < rows; r++){
+        for (let q = 0; q < cols; q++){
+          const x = q * cellW + cellW/2;
+          const y = r * cellH + cellH/2;
+          const bit = rnd() > 0.5 ? '1' : '0';
+          const a = 0.15 + 0.35 * rnd();
+          c.fillStyle = `rgba(230,236,244,${a})`;
+          c.fillText(bit, x + (rnd()-0.5)*2, y + (rnd()-0.5)*2);
+        }
+      }
+      c.fillStyle = g;
+      c.fillRect(0,0,w,h);
+
+      binaryPatternCanvas = off;
+      return off;
+    }
+
+    // Listeners
+    function listenInputs() {
+      // Basic fields
+      const map = {
+        title: 'title',
+        rulesText: 'rulesText',
+        frameColor: 'frameColor',
+        creatorName: 'creatorName',
+        artFit: 'artFit',
+        rarityName: 'rarityName',
+      };
+      Object.entries(map).forEach(([id, key]) => {
+        const node = el[id];
+        const handler = () => { state[key] = node.value; saveToLocal(); markDirty(); };
+        node.addEventListener('input', handler);
+        node.addEventListener('change', handler);
+      });
+
+      // Art controls
+      const updScale = () => {
+        state.artScale = parseFloat(el.artScale.value) || 1;
+        el.artScaleVal.textContent = Math.round(state.artScale * 100) + '%';
+        saveToLocal(); markDirty();
+      };
+      el.artScale.addEventListener('input', updScale); updScale();
+
+      const updOffX = () => {
+        state.artOffsetX = parseInt(el.artOffsetX.value || '0', 10);
+        el.artOffsetXVal.textContent = state.artOffsetX + '%';
+        saveToLocal(); markDirty();
+      };
+      const updOffY = () => {
+        state.artOffsetY = parseInt(el.artOffsetY.value || '0', 10);
+        el.artOffsetYVal.textContent = state.artOffsetY + '%';
+        saveToLocal(); markDirty();
+      };
+      el.artOffsetX.addEventListener('input', updOffX); updOffX();
+      el.artOffsetY.addEventListener('input', updOffY); updOffY();
+
+      // Upload
+      el.artUpload.addEventListener('change', (e) => handleImageUpload(e, 'artImage'));
+
+      // Toolbar wrap
+      el.fmtBold.addEventListener('click', () => wrapSelection(el.rulesText, '[b]', '[/b]'));
+      el.fmtItalic.addEventListener('click', () => wrapSelection(el.rulesText, '[i]', '[/i]'));
+      el.fmtUnderline.addEventListener('click', () => wrapSelection(el.rulesText, '[u]', '[/u]'));
+
+      // Actions
+      el.btnExport.addEventListener('click', () => exportPNG(2));
+      el.btnReset.addEventListener('click', () => {
+        if (confirm('Clear the current card?')) {
+          Object.assign(state, {
+            title: '',
+            rulesText: '',
+            frameColor: 'colorless',
+            artImage: null,
+            artFit: 'cover',
+            artScale: 1,
+            artOffsetX: 0,
+            artOffsetY: 0,
+            rarityName: 'ultra common',
+            creatorName: '',
+          });
+          applyStateToUI();
+          saveToLocal();
+          markDirty();
+        }
+      });
+
+      el.hires.addEventListener('change', () => { resizeCanvas(); });
+      window.addEventListener('resize', () => { resizeCanvas(); });
+    }
+
+    function wrapSelection(textarea, open, close){
+      const start = textarea.selectionStart ?? 0;
+      const end = textarea.selectionEnd ?? 0;
+      const val = textarea.value;
+      const before = val.slice(0, start);
+      const sel = val.slice(start, end);
+      const after = val.slice(end);
+      const wrapped = open + sel + close;
+      textarea.value = before + wrapped + after;
+      const newPos = before.length + open.length + sel.length;
+      textarea.focus();
+      textarea.setSelectionRange(newPos, newPos);
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    function handleImageUpload(e, key) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const img = new Image();
+      img.onload = () => { state[key] = img; saveToLocal(); markDirty(); };
+      img.onerror = () => alert('Could not load image.');
+      img.src = URL.createObjectURL(file);
+    }
+
+    // Drawing
+    function drawPreview() {
+      const scale = el.canvas.width / BASE_W;
+      drawCard(ctx, scale);
+    }
+
+    function roundedRectPath(c, x, y, w, h, r) {
+      const rr = Math.min(r, w/2, h/2);
+      c.beginPath();
+      c.moveTo(x + rr, y);
+      c.arcTo(x + w, y, x + w, y + h, rr);
+      c.arcTo(x + w, y + h, x, y + h, rr);
+      c.arcTo(x, y + h, x, y, rr);
+      c.arcTo(x, y, x + w, y, rr);
+      c.closePath();
+    }
+
+    function drawCard(c, s=1) {
+      // Clear
+      c.setTransform(1,0,0,1,0,0);
+      c.clearRect(0,0,el.canvas.width, el.canvas.height);
+      c.setTransform(s,0,0,s,0,0);
+
+      // Background
+      c.save();
+      c.fillStyle = '#0c0f14';
+      c.fillRect(0,0,BASE_W,BASE_H);
+      c.restore();
+
+      // Outer frame with gradient tint
+      const outerX = 16, outerY = 16, outerW = BASE_W - 32, outerH = BASE_H - 32;
+      const [colA, colB] = FRAME_COLORS[state.frameColor] || FRAME_COLORS.colorless;
+      const grad = c.createLinearGradient(outerX, outerY, outerX + outerW, outerY + outerH);
+      grad.addColorStop(0, colA);
+      grad.addColorStop(1, colB);
+
+      c.save();
+      roundedRectPath(c, outerX, outerY, outerW, outerH, 24);
+      c.fillStyle = grad;
+      c.fill();
+      c.shadowColor = 'rgba(0,0,0,.5)';
+      c.shadowBlur = 18;
+      c.shadowOffsetY = 8;
+      c.strokeStyle = 'rgba(0,0,0,.35)';
+      c.lineWidth = 4;
+      c.stroke();
+      c.restore();
+
+      // Art window and binary background
+      const artX = 48, artY = 110, artW = BASE_W - 96, artH = 520; // lowered slightly for bigger title bar
+      c.save();
+      roundedRectPath(c, artX, artY, artW, artH, 16);
+      c.clip();
+
+      const pattern = ensureBinaryPattern(artW, artH);
+      c.drawImage(pattern, artX, artY);
+
+      if (state.artImage) {
+        drawAdjustedImage(c, state.artImage, { x: artX, y: artY, w: artW, h: artH }, state);
+      } else {
+        c.fillStyle = 'rgba(0,0,0,.25)';
+        c.fillRect(artX, artY + artH - 48, artW, 48);
+        c.fillStyle = '#cfd5df';
+        c.font = '600 20px Inter, system-ui, sans-serif';
+        c.textAlign = 'center';
+        c.textBaseline = 'alphabetic';
+        c.fillText('Upload art image', artX + artW/2, artY + artH - 18);
+      }
+      c.restore();
+
+      // Title bar (enlarged height and font)
+      const titleH = 90;
+      c.save();
+      roundedRectPath(c, 32, 24, BASE_W-64, titleH, 18);
+      c.fillStyle = 'rgba(0,0,0,.28)';
+      c.fill();
+      c.strokeStyle = 'rgba(255,255,255,.08)';
+      c.lineWidth = 2;
+      c.stroke();
+
+      c.font = '700 44px Cinzel, serif'; // enlarged name font
+      c.fillStyle = '#f0f3f8';
+      c.textBaseline = 'middle';
+      c.textAlign = 'left';
+      const titlePadding = 22;
+      const titleMaxW = BASE_W - 64 - 40;
+      drawClampedText(c, state.title || 'Card Name', 32 + titlePadding, 24 + titleH/2, titleMaxW);
+      c.restore();
+
+      // Effect text box (fixed light background), larger font size
+      const rulesY = artY + artH + 16;
+      const rulesH = BASE_H - rulesY - 32; // fill remaining space
+      c.save();
+      roundedRectPath(c, 32, rulesY, BASE_W-64, rulesH, 12);
+      c.fillStyle = getCssVar('--effect-bg');
+      c.fill();
+      c.strokeStyle = getCssVar('--effect-stroke');
+      c.lineWidth = 2;
+      c.stroke();
+
+      c.fillStyle = getCssVar('--effect-text');
+      c.textAlign = 'left';
+      c.textBaseline = 'top';
+      drawWrappedRichText(
+        c,
+        state.rulesText || 'Effect text goes here. Use [b]bold[/b], [i]italic[/i], [u]underline[/u].',
+        48,
+        rulesY + 16,
+        BASE_W - 96,
+        40,  // lineHeight (larger)
+        30   // fontSize (larger)
+      );
+      c.restore();
+
+      // Rarity indicator bars (8 slots, first N white; N from dropdown 1..7)
+      drawRarityBars(c, RARITY_TO_LINES[state.rarityName] ?? 1);
+
+      // Creator name (lower-left)
+      drawCreatorName(c, state.creatorName);
+    }
+
+    function getCssVar(name){
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    function drawAdjustedImage(c, img, box, st) {
+      const { x: bx, y: by, w: bw, h: bh } = box;
+      const iw = img.width, ih = img.height;
+      if (!iw || !ih) return;
+
+      const sCover = Math.max(bw / iw, bh / ih);
+      const sContain = Math.min(bw / iw, bh / ih);
+      let s = (st.artFit === 'contain') ? sContain : sCover;
+      s *= st.artScale || 1;
+
+      const dw = iw * s;
+      const dh = ih * s;
+
+      const overflowX = Math.max(dw - bw, 0);
+      const overflowY = Math.max(dh - bh, 0);
+
+      const dx = bx + (bw - dw)/2 + (st.artOffsetX/100) * overflowX/2;
+      const dy = by + (bh - dh)/2 + (st.artOffsetY/100) * overflowY/2;
+
+      c.drawImage(img, dx, dy, dw, dh);
+    }
+
+    function drawRarityBars(c, whiteCount) {
+      const total = 8;
+      const boxW = 120, boxH = 56;
+      const boxX = BASE_W - 32 - boxW;
+      const boxY = BASE_H - 32 - boxH;
+
+      c.save();
+      roundedRectPath(c, boxX, boxY, boxW, boxH, 10);
+      c.fillStyle = 'rgba(0,0,0,.40)';
+      c.fill();
+      c.strokeStyle = 'rgba(255,255,255,.08)';
+      c.lineWidth = 2;
+      c.stroke();
+
+      const padX = 12, padY = 10;
+      const innerW = boxW - padX*2;
+      const innerH = boxH - padY*2;
+      const gap = 6;
+      const barW = (innerW - gap * (total - 1)) / total;
+      const x0 = boxX + padX;
+      const y0 = boxY + padY;
+
+      for (let i = 0; i < total; i++) {
+        const x = x0 + i * (barW + gap);
+        c.fillStyle = i < whiteCount ? '#ffffff' : '#000000';
+        c.save();
+        roundedRectPath(c, x, y0, barW, innerH, 3);
+        c.fill();
+        c.globalAlpha = 0.15;
+        c.fillStyle = i < whiteCount ? '#000' : '#fff';
+        c.fillRect(x, y0, barW, innerH * 0.45);
+        c.globalAlpha = 1;
+        c.restore();
+      }
+      c.restore();
+    }
+
+    function drawCreatorName(c, name) {
+      if (!name) return;
+      const boxW = 120; // same width as rarity box for margin calc
+      const maxW = (BASE_W - 32 - boxW) - 32;
+      const x = 32 + 16;
+      const y = BASE_H - 36;
+      c.save();
+      c.font = '600 16px Inter, system-ui, sans-serif';
+      c.fillStyle = '#cfd5df';
+      c.textAlign = 'left';
+      c.textBaseline = 'alphabetic';
+      drawClampedText(c, name, x, y, maxW);
+      c.restore();
+    }
+
+    // Rich text parsing and rendering (supports [b], [i], [u])
+    function drawWrappedRichText(c, text, x, y, maxWidth, lineHeight, fontSize) {
+      const paragraphs = (text || '').split(/\n{2,}/);
+      let cy = y;
+      for (let p = 0; p < paragraphs.length; p++) {
+        const para = paragraphs[p].replace(/\n/g, ' ');
+        const runs = parseBBCodeRuns(para);
+        const tokens = runsToTokens(runs);
+        const lines = [];
+        let line = [];
+        let lineW = 0;
+
+        for (const tok of tokens) {
+          const w = measureToken(c, tok, fontSize);
+          const isSpace = /^\s+$/.test(tok.text);
+          if (lines.length === 0 && line.length === 0 && isSpace) continue;
+          if (lineW + w <= maxWidth) {
+            line.push(tok); lineW += w;
+          } else {
+            if (!isSpace && w > maxWidth) {
+              let cur = '';
+              for (const ch of tok.text) {
+                const test = cur + ch;
+                const testW = measureText(c, test, tok.bold, tok.italic, fontSize);
+                if (lineW + testW <= maxWidth) {
+                  cur = test;
+                } else {
+                  if (cur) { line.push({ ...tok, text: cur }); lines.push(line); line = []; lineW = 0; cur = ch; }
+                  else { line.push({ ...tok, text: ch }); lines.push(line); line = []; lineW = 0; cur = ''; }
+                }
+              }
+              if (cur) {
+                const curW = measureText(c, cur, tok.bold, tok.italic, fontSize);
+                if (curW > maxWidth && line.length === 0) {
+                  line.push({ ...tok, text: cur }); lines.push(line); line = []; lineW = 0;
+                } else { line.push({ ...tok, text: cur }); lineW += curW; }
+              }
+            } else {
+              lines.push(line); line = []; lineW = 0;
+              if (!isSpace) { line.push(tok); lineW += w; }
+            }
+          }
+        }
+        if (line.length) lines.push(line);
+
+        // Draw lines
+        for (const ln of lines) {
+          let cx = x;
+          for (const tk of ln) {
+            const w = measureText(c, tk.text, tk.bold, tk.italic, fontSize);
+            setFont(c, tk.bold, tk.italic, fontSize);
+            c.fillText(tk.text, cx, cy);
+            if (tk.underline && tk.text.trim() !== '') {
+              const uy = cy + fontSize + 3;
+              c.save();
+              c.strokeStyle = c.fillStyle;
+              c.lineWidth = 2;
+              c.beginPath();
+              c.moveTo(cx, uy);
+              c.lineTo(cx + w, uy);
+              c.stroke();
+              c.restore();
+            }
+            cx += w;
+          }
+          cy += lineHeight;
+        }
+        if (p < paragraphs.length - 1) cy += 10;
+      }
+    }
+
+    function parseBBCodeRuns(str) {
+      const runs = [];
+      let i = 0;
+      let bold = 0, italic = 0, underline = 0;
+      const tagRe = /\[(\/?)(b|i|u)\]/ig;
+      let m;
+      while ((m = tagRe.exec(str)) !== null) {
+        const idx = m.index;
+        if (idx > i) {
+          runs.push({ text: str.slice(i, idx), bold: bold>0, italic: italic>0, underline: underline>0 });
+        }
+        const closing = m[1] === '/';
+        const tag = m[2].toLowerCase();
+        if (!closing) { if (tag==='b') bold++; else if (tag==='i') italic++; else if (tag==='u') underline++; }
+        else { if (tag==='b'&&bold>0) bold--; else if (tag==='i'&&italic>0) italic--; else if (tag==='u'&&underline>0) underline--; }
+        i = idx + m[0].length;
+      }
+      if (i < str.length) {
+        runs.push({ text: str.slice(i), bold: bold>0, italic: italic>0, underline: underline>0 });
+      }
+      return runs;
+    }
+    function runsToTokens(runs) {
+      const tokens = [];
+      for (const r of runs) {
+        const parts = String(r.text).split(/(\s+)/);
+        for (const part of parts) {
+          if (part === '') continue;
+          tokens.push({ text: part, bold: r.bold, italic: r.italic, underline: r.underline });
+        }
+      }
+      return tokens;
+    }
+    function setFont(c, bold, italic, sizePx) {
+      const weight = bold ? '700' : '400';
+      const style = italic ? 'italic ' : '';
+      c.font = `${style}${weight} ${sizePx}px Inter, system-ui, sans-serif`;
+    }
+    function measureText(c, text, bold, italic, sizePx) {
+      setFont(c, bold, italic, sizePx);
+      return c.measureText(text).width;
+    }
+    function measureToken(c, tok, sizePx) { return measureText(c, tok.text, tok.bold, tok.italic, sizePx); }
+
+    function drawClampedText(c, text, x, y, maxWidth) {
+      if (c.measureText(text).width <= maxWidth) { c.fillText(text, x, y); return; }
+      let str = text;
+      while (str.length > 0 && c.measureText(str + '…').width > maxWidth) str = str.slice(0, -1);
+      c.fillText(str + '…', x, y);
+    }
+
+    // Export (always high-res)
+    function exportPNG(scale=2) {
+      const off = document.createElement('canvas');
+      off.width = BASE_W * scale;
+      off.height = BASE_H * scale;
+      const offCtx = off.getContext('2d');
+      drawCard(offCtx, scale);
+      const url = off.toDataURL('image/png');
+      downloadURL(url, `card-${Date.now()}.png`);
+    }
+
+    function serializeState() {
+      return {
+        title: state.title,
+        rulesText: state.rulesText,
+        frameColor: state.frameColor,
+        rarityName: state.rarityName,
+        creatorName: state.creatorName,
+        artFit: state.artFit,
+        artScale: state.artScale,
+        artOffsetX: state.artOffsetX,
+        artOffsetY: state.artOffsetY,
+      };
+    }
+    function applyLoadedState(obj) {
+      Object.assign(state, {
+        title: obj.title ?? '',
+        rulesText: obj.rulesText ?? '',
+        frameColor: obj.frameColor ?? 'colorless',
+        rarityName: obj.rarityName ?? 'ultra common',
+        creatorName: obj.creatorName ?? '',
+        artFit: obj.artFit ?? 'cover',
+        artScale: typeof obj.artScale === 'number' ? obj.artScale : 1,
+        artOffsetX: typeof obj.artOffsetX === 'number' ? obj.artOffsetX : 0,
+        artOffsetY: typeof obj.artOffsetY === 'number' ? obj.artOffsetY : 0,
+      });
+      applyStateToUI();
+      saveToLocal();
+      markDirty();
+    }
+    function applyStateToUI() {
+      el.title.value = state.title;
+      el.rulesText.value = state.rulesText;
+      el.frameColor.value = state.frameColor;
+      el.rarityName.value = state.rarityName;
+      el.creatorName.value = state.creatorName;
+      el.artFit.value = state.artFit;
+      el.artScale.value = String(state.artScale);
+      el.artScale.dispatchEvent(new Event('input'));
+      el.artOffsetX.value = String(state.artOffsetX);
+      el.artOffsetX.dispatchEvent(new Event('input'));
+      el.artOffsetY.value = String(state.artOffsetY);
+      el.artOffsetY.dispatchEvent(new Event('input'));
+    }
+
+    function slugify(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
+    function downloadURL(url, filename) {
+      const a = document.createElement('a'); a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+    function saveToLocal() {
+      try { localStorage.setItem('cardDesignerState_v7', JSON.stringify(serializeState())); } catch {}
+    }
+    function loadFromLocal() {
+      try {
+        const raw = localStorage.getItem('cardDesignerState_v7');
+        if (!raw) return;
+        const obj = JSON.parse(raw);
+        applyLoadedState(obj);
+      } catch {}
+    }
+
+    // Init
+    (function init(){
+      // Responsive backing store size
+      resizeCanvas();
+      new ResizeObserver(() => resizeCanvas()).observe(document.body);
+
+      loadFromLocal();       // keep autosave, but no manual Save/Load buttons
+      applyStateToUI();
+      listenInputs();
+      loop();
+    })();
+  </script>
+</body>
+</html>
